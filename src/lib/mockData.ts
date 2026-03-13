@@ -1,17 +1,23 @@
 import type { Protocolo } from "./types";
 
-const TIPOS = [
-  "Casa", "Sobrado", "Geminado", "Edifício", "Comércio",
-  "Habite-se", "Alvará", "Consulta", "Certidão", "Desdobro",
-  "Unificação", "Desmembramento",
+const TIPOS_PROCESSO: { tipo: string; subtipo: string }[] = [
+  { tipo: "Alvará de Construção", subtipo: "Residencial" },
+  { tipo: "Alvará de Construção", subtipo: "Comercial" },
+  { tipo: "Alvará de Construção", subtipo: "Misto" },
+  { tipo: "Alvará de Ampliação", subtipo: "Residencial" },
+  { tipo: "Alvará de Ampliação", subtipo: "Comercial" },
+  { tipo: "Alvará de Demolição", subtipo: "Total" },
+  { tipo: "Alvará de Demolição", subtipo: "Parcial" },
+  { tipo: "Alvará de Regularização", subtipo: "Residencial" },
+  { tipo: "Alvará de Regularização", subtipo: "Comercial" },
+  { tipo: "Desmembramento", subtipo: "Urbano" },
+  { tipo: "Desmembramento", subtipo: "Rural" },
+  { tipo: "Comércio", subtipo: "Licença de Funcionamento" },
+  { tipo: "Comércio", subtipo: "Alvará Sanitário" },
+  { tipo: "Certidão", subtipo: "Uso do Solo" },
+  { tipo: "Certidão", subtipo: "Conclusão de Obra" },
+  { tipo: "Certidão", subtipo: "Numeração" },
 ];
-
-const TIPO_MACRO: Record<string, string> = {
-  Casa: "Edificação", Sobrado: "Edificação", Geminado: "Edificação", Edifício: "Edificação",
-  Comércio: "Edificação", "Habite-se": "Licenciamento", Alvará: "Licenciamento",
-  Consulta: "Consulta", Certidão: "Certidão", Desdobro: "Parcelamento",
-  Unificação: "Parcelamento", Desmembramento: "Parcelamento",
-};
 
 const SITUACOES: Protocolo["situacao"][] = ["Aberto", "Em Análise", "Pendente", "Encerrado"];
 
@@ -27,7 +33,7 @@ function diffDays(a: string, b: string): number {
   return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000);
 }
 
-export function calcCriticidade(dias: number): Protocolo["criticidade_prazo"] {
+export function calcCriticidade(dias: number): Protocolo["criticidade"] {
   if (dias <= 7) return "RECENTE";
   if (dias <= 15) return "ATENÇÃO";
   if (dias <= 30) return "LIMITE SLA";
@@ -48,14 +54,14 @@ export function heatClass(dias: number): string {
   return "heat-grave";
 }
 
-export function criticidadeBadgeClass(c: Protocolo["criticidade_prazo"]): string {
+export function criticidadeBadgeClass(c: Protocolo["criticidade"]): string {
   switch (c) {
     case "RECENTE": return "bg-status-green/15 text-status-green border-status-green/30";
     case "ATENÇÃO": return "bg-status-yellow/15 text-status-yellow border-status-yellow/30";
     case "LIMITE SLA": return "bg-status-orange/15 text-status-orange border-status-orange/30";
-    case "ATRASADO": return "bg-status-red/15 text-status-red border-status-red/30";
-    case "CRÍTICO": return "bg-status-red/20 text-status-red border-status-red/40";
-    case "GRAVÍSSIMO": return "bg-status-red-dark/20 text-status-red-dark border-status-red-dark/40";
+    case "ATRASADO": return "bg-status-yellow/15 text-status-yellow border-status-yellow/30";
+    case "CRÍTICO": return "bg-status-orange/15 text-status-orange border-status-orange/30";
+    case "GRAVÍSSIMO": return "bg-status-red/20 text-status-red border-status-red/40";
   }
 }
 
@@ -66,8 +72,8 @@ export function generateMockData(sla: number, anoGestao: number): Protocolo[] {
   let id = 1;
 
   for (let i = 0; i < 480; i++) {
-    const ano = 2020 + Math.floor(Math.random() * 6); // 2020–2025
-    const tipo = TIPOS[Math.floor(Math.random() * TIPOS.length)];
+    const ano = 2020 + Math.floor(Math.random() * 6);
+    const tp = TIPOS_PROCESSO[Math.floor(Math.random() * TIPOS_PROCESSO.length)];
     const abertura = randomDate(new Date(ano, 0, 1), new Date(ano, 11, 28));
     const isEncerrado = Math.random() < 0.35;
     const situacao: Protocolo["situacao"] = isEncerrado
@@ -83,24 +89,22 @@ export function generateMockData(sla: number, anoGestao: number): Protocolo[] {
       : null;
 
     const diasSemMov = isEncerrado ? 0 : diffDays(fmt(ultimoTramite), hojeStr);
-    const diasDesdeAbertura = diffDays(fmt(abertura), hojeStr);
     const gestao: Protocolo["gestao"] = ano < anoGestao ? "GESTÃO ANTERIOR" : "GESTÃO ATUAL";
     const passivo = gestao === "GESTÃO ANTERIOR" && !isEncerrado;
 
     protocolos.push({
       id_protocolo: id++,
-      numero_protocolo: `${String(Math.floor(Math.random() * 9000) + 1000)}/${ano}`,
-      ano_protocolo: ano,
-      tipo_processo: tipo,
-      tipo_macro: TIPO_MACRO[tipo],
+      protocolo: `${String(Math.floor(Math.random() * 9000) + 1000)}/${ano}`,
+      ano_abertura: ano,
+      tipo_processo: tp.tipo,
+      subtipo_processo: tp.subtipo,
       situacao,
       data_abertura: fmt(abertura),
       data_ultimo_tramite: fmt(ultimoTramite),
       data_encerramento: encerramento ? fmt(encerramento) : null,
       dias_sem_movimento: Math.max(0, diasSemMov),
-      dias_desde_abertura: Math.max(0, diasDesdeAbertura),
+      criticidade: calcCriticidade(Math.max(0, diasSemMov)),
       status_prazo: calcStatusPrazo(Math.max(0, diasSemMov), sla),
-      criticidade_prazo: calcCriticidade(Math.max(0, diasSemMov)),
       gestao,
       passivo_herdado: passivo,
     });

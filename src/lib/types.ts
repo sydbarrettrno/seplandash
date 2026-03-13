@@ -1,17 +1,16 @@
 export interface Protocolo {
   id_protocolo: number;
-  numero_protocolo: string;
-  ano_protocolo: number;
+  protocolo: string;
+  ano_abertura: number;
   tipo_processo: string;
-  tipo_macro: string;
+  subtipo_processo: string;
   situacao: "Aberto" | "Em Análise" | "Pendente" | "Encerrado";
   data_abertura: string;
   data_ultimo_tramite: string;
   data_encerramento: string | null;
   dias_sem_movimento: number;
-  dias_desde_abertura: number;
+  criticidade: "RECENTE" | "ATENÇÃO" | "LIMITE SLA" | "ATRASADO" | "CRÍTICO" | "GRAVÍSSIMO";
   status_prazo: "NO PRAZO" | "ATRASADO";
-  criticidade_prazo: "RECENTE" | "ATENÇÃO" | "LIMITE SLA" | "ATRASADO" | "CRÍTICO" | "GRAVÍSSIMO";
   gestao: "GESTÃO ATUAL" | "GESTÃO ANTERIOR";
   passivo_herdado: boolean;
 }
