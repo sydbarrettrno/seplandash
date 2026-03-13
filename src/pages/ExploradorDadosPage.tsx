@@ -6,13 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const TIPOS = [
-  "Casa", "Sobrado", "Geminado", "Edifício", "Comércio",
-  "Habite-se", "Alvará", "Consulta", "Certidão", "Desdobro",
-  "Unificação", "Desmembramento",
-];
+type SortKey = "protocolo" | "ano_abertura" | "tipo_processo" | "dias_sem_movimento" | "data_abertura" | "situacao" | "criticidade";
 
-type SortKey = "numero_protocolo" | "ano_protocolo" | "tipo_processo" | "dias_sem_movimento" | "data_abertura";
+const CRITICIDADE_ORDER: Record<string, number> = {
+  "GRAVÍSSIMO": 6, "CRÍTICO": 5, "ATRASADO": 4, "LIMITE SLA": 3, "ATENÇÃO": 2, "RECENTE": 1,
+};
 
 export default function ExploradorDadosPage() {
   const data = useProtocolos();
@@ -21,27 +19,36 @@ export default function ExploradorDadosPage() {
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroGestao, setFiltroGestao] = useState("todos");
   const [filtroPrazo, setFiltroPrazo] = useState("todos");
+  const [filtroCriticidade, setFiltroCriticidade] = useState("todos");
+  const [filtroPassivo, setFiltroPassivo] = useState("todos");
   const [sortKey, setSortKey] = useState<SortKey>("dias_sem_movimento");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const anos = useMemo(() => [...new Set(data.map(p => p.ano_protocolo))].sort(), [data]);
+  const anos = useMemo(() => [...new Set(data.map(p => p.ano_abertura))].sort(), [data]);
+  const tipos = useMemo(() => [...new Set(data.map(p => p.tipo_processo))].sort(), [data]);
 
   const filtered = useMemo(() => {
     let result = data;
     if (search) {
       const s = search.toLowerCase();
       result = result.filter(p =>
-        p.numero_protocolo.toLowerCase().includes(s) ||
+        p.protocolo.toLowerCase().includes(s) ||
         p.tipo_processo.toLowerCase().includes(s) ||
         p.situacao.toLowerCase().includes(s)
       );
     }
-    if (filtroAno !== "todos") result = result.filter(p => p.ano_protocolo === Number(filtroAno));
+    if (filtroAno !== "todos") result = result.filter(p => p.ano_abertura === Number(filtroAno));
     if (filtroTipo !== "todos") result = result.filter(p => p.tipo_processo === filtroTipo);
     if (filtroGestao !== "todos") result = result.filter(p => p.gestao === filtroGestao);
     if (filtroPrazo !== "todos") result = result.filter(p => p.status_prazo === filtroPrazo);
+    if (filtroCriticidade !== "todos") result = result.filter(p => p.criticidade === filtroCriticidade);
+    if (filtroPassivo !== "todos") result = result.filter(p => filtroPassivo === "sim" ? p.passivo_herdado : !p.passivo_herdado);
 
     result = [...result].sort((a, b) => {
+      if (sortKey === "criticidade") {
+        const diff = (CRITICIDADE_ORDER[b.criticidade] || 0) - (CRITICIDADE_ORDER[a.criticidade] || 0);
+        return sortDir === "asc" ? -diff : diff;
+      }
       const av = a[sortKey];
       const bv = b[sortKey];
       if (typeof av === "number" && typeof bv === "number") return sortDir === "asc" ? av - bv : bv - av;
@@ -49,7 +56,7 @@ export default function ExploradorDadosPage() {
     });
 
     return result;
-  }, [data, search, filtroAno, filtroTipo, filtroGestao, filtroPrazo, sortKey, sortDir]);
+  }, [data, search, filtroAno, filtroTipo, filtroGestao, filtroPrazo, filtroCriticidade, filtroPassivo, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -77,10 +84,10 @@ export default function ExploradorDadosPage() {
           </SelectContent>
         </Select>
         <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Tipo" /></SelectTrigger>
+          <SelectTrigger className="w-48"><SelectValue placeholder="Tipo" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos</SelectItem>
-            {TIPOS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            {tipos.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filtroGestao} onValueChange={setFiltroGestao}>
@@ -99,6 +106,26 @@ export default function ExploradorDadosPage() {
             <SelectItem value="ATRASADO">Atrasado</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filtroCriticidade} onValueChange={setFiltroCriticidade}>
+          <SelectTrigger className="w-36"><SelectValue placeholder="Criticidade" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todas</SelectItem>
+            <SelectItem value="RECENTE">Recente</SelectItem>
+            <SelectItem value="ATENÇÃO">Atenção</SelectItem>
+            <SelectItem value="LIMITE SLA">Limite SLA</SelectItem>
+            <SelectItem value="ATRASADO">Atrasado</SelectItem>
+            <SelectItem value="CRÍTICO">Crítico</SelectItem>
+            <SelectItem value="GRAVÍSSIMO">Gravíssimo</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filtroPassivo} onValueChange={setFiltroPassivo}>
+          <SelectTrigger className="w-32"><SelectValue placeholder="Passivo" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos</SelectItem>
+            <SelectItem value="sim">Sim</SelectItem>
+            <SelectItem value="nao">Não</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <p className="text-sm text-muted-foreground">{filtered.length} registros</p>
@@ -107,16 +134,18 @@ export default function ExploradorDadosPage() {
         <Table>
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
-              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("numero_protocolo")}>
-                Protocolo{sortIcon("numero_protocolo")}
+              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("protocolo")}>
+                Protocolo{sortIcon("protocolo")}
               </TableHead>
-              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("ano_protocolo")}>
-                Ano{sortIcon("ano_protocolo")}
+              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("ano_abertura")}>
+                Ano{sortIcon("ano_abertura")}
               </TableHead>
               <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("tipo_processo")}>
                 Tipo{sortIcon("tipo_processo")}
               </TableHead>
-              <TableHead>Situação</TableHead>
+              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("situacao")}>
+                Situação{sortIcon("situacao")}
+              </TableHead>
               <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("data_abertura")}>
                 Abertura{sortIcon("data_abertura")}
               </TableHead>
@@ -124,7 +153,9 @@ export default function ExploradorDadosPage() {
               <TableHead className="cursor-pointer select-none text-right" onClick={() => toggleSort("dias_sem_movimento")}>
                 Dias s/ Mov.{sortIcon("dias_sem_movimento")}
               </TableHead>
-              <TableHead>Criticidade</TableHead>
+              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("criticidade")}>
+                Criticidade{sortIcon("criticidade")}
+              </TableHead>
               <TableHead>Gestão</TableHead>
               <TableHead>Passivo</TableHead>
             </TableRow>
@@ -132,8 +163,8 @@ export default function ExploradorDadosPage() {
           <TableBody>
             {filtered.slice(0, 200).map(p => (
               <TableRow key={p.id_protocolo}>
-                <TableCell className="font-mono text-sm">{p.numero_protocolo}</TableCell>
-                <TableCell>{p.ano_protocolo}</TableCell>
+                <TableCell className="font-mono text-sm">{p.protocolo}</TableCell>
+                <TableCell>{p.ano_abertura}</TableCell>
                 <TableCell>{p.tipo_processo}</TableCell>
                 <TableCell>{p.situacao}</TableCell>
                 <TableCell className="text-sm">{p.data_abertura}</TableCell>
@@ -144,8 +175,8 @@ export default function ExploradorDadosPage() {
                   </span>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={`text-xs ${criticidadeBadgeClass(p.criticidade_prazo)}`}>
-                    {p.criticidade_prazo}
+                  <Badge variant="outline" className={`text-xs ${criticidadeBadgeClass(p.criticidade)}`}>
+                    {p.criticidade}
                   </Badge>
                 </TableCell>
                 <TableCell>

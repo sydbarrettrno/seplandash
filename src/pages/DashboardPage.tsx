@@ -48,14 +48,14 @@ export default function DashboardPage() {
 
   const monthlyChart = useMemo(() => {
     const months: Record<string, { entradas: number; encerramentos: number }> = {};
-    const fmt = (d: string) => d.slice(0, 7);
+    const fmtMonth = (d: string) => d.slice(0, 7);
     data.forEach(p => {
-      const m = fmt(p.data_abertura);
+      const m = fmtMonth(p.data_abertura);
       if (!months[m]) months[m] = { entradas: 0, encerramentos: 0 };
       months[m].entradas++;
     });
     data.filter(p => p.data_encerramento).forEach(p => {
-      const m = fmt(p.data_encerramento!);
+      const m = fmtMonth(p.data_encerramento!);
       if (!months[m]) months[m] = { entradas: 0, encerramentos: 0 };
       months[m].encerramentos++;
     });
@@ -135,21 +135,19 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {cards.map(c => (
-          <Card key={c.label} className={c.accent ? "border-status-red/30" : ""}>
+          <Card key={c.label} className={c.accent ? "border-destructive/30" : ""}>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <c.icon className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground font-medium">{c.label}</span>
               </div>
-              <p className={`text-2xl font-bold ${c.accent ? "text-status-red" : ""}`}>{c.value}</p>
+              <p className={`text-2xl font-bold ${c.accent ? "text-destructive" : ""}`}>{c.value}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Line: entradas x encerramentos */}
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Entradas × Encerramentos por Mês</CardTitle></CardHeader>
           <CardContent className="h-64">
@@ -167,7 +165,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Donut: prazo */}
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">No Prazo × Atrasado</CardTitle></CardHeader>
           <CardContent className="h-64">
@@ -182,15 +179,14 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Bar: tipo abertos */}
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Abertos por Tipo</CardTitle></CardHeader>
-          <CardContent className="h-72">
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Abertos por Tipo de Processo</CardTitle></CardHeader>
+          <CardContent className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={tipoAbertos} layout="vertical" margin={{ left: 80 }}>
+              <BarChart data={tipoAbertos} layout="vertical" margin={{ left: 120 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,20%,88%)" />
                 <XAxis type="number" fontSize={10} />
-                <YAxis type="category" dataKey="tipo" fontSize={10} width={75} />
+                <YAxis type="category" dataKey="tipo" fontSize={10} width={115} />
                 <Tooltip />
                 <Bar dataKey="count" fill="hsl(200,70%,45%)" radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -198,7 +194,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Bar: faixas inatividade */}
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Faixas de Inatividade</CardTitle></CardHeader>
           <CardContent className="h-64">
@@ -219,15 +214,14 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Bar horizontal: passivo por tipo */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2"><CardTitle className="text-sm">Passivo Herdado por Tipo</CardTitle></CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={passivoTipo} layout="vertical" margin={{ left: 80 }}>
+              <BarChart data={passivoTipo} layout="vertical" margin={{ left: 120 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,20%,88%)" />
                 <XAxis type="number" fontSize={10} />
-                <YAxis type="category" dataKey="tipo" fontSize={10} width={75} />
+                <YAxis type="category" dataKey="tipo" fontSize={10} width={115} />
                 <Tooltip />
                 <Bar dataKey="count" fill="hsl(0,72%,51%)" radius={[0, 4, 4, 0]} />
               </BarChart>
